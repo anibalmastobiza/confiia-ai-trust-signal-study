@@ -130,6 +130,20 @@ https://anibalmastobiza.github.io/confiia-ai-trust-signal-study/
 
 In the GitHub repository settings, Pages must use **GitHub Actions** as its source.
 
+## Recruitment flyer
+
+The English A4 recruitment poster is available at
+[`output/pdf/recruitment_flyer_confiia_ai_trust_signals_en.pdf`](output/pdf/recruitment_flyer_confiia_ai_trust_signals_en.pdf).
+Its QR code and printed link point to the GitHub Pages URL above. To regenerate it:
+
+```bash
+python scripts/generate_recruitment_flyer.py
+```
+
+The poster mirrors the visual language of CONFIIA Study 01 while making Study 02's
+five-minute behavioral task and privacy boundary explicit: no camera, no microphone,
+and no storage of the participant's raw typed sentence.
+
 ## Pre-launch checklist
 
 - Obtain ethics/data-protection approval and replace placeholder consent language.

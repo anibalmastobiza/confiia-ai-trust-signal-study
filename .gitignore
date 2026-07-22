@@ -11,3 +11,4 @@ analysis-results/
 *.pyc
 __pycache__/
 .venv/
+tmp/
