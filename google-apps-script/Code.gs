@@ -1,6 +1,24 @@
 const SPREADSHEET_ID = "1zQQUAwmle48n9EpFc3W7czXHZ687-pss_ggglCbKtgM";
 const SHEET_NAME = "Study02_Responses";
 const STUDY_ID = "confiia_ai_trust_behavioral_signals";
+const ROUTER_SHEET_NAME = "Recruitment_Assignments";
+const ROUTER_STUDY_ID = "confiia_ai_trust_recruitment_router";
+
+const ROUTER_DESTINATIONS = {
+  study01: "https://anibalmastobiza.github.io/confiia-ai-trust-framing-study/",
+  study02: "https://anibalmastobiza.github.io/confiia-ai-trust-signal-study/",
+};
+
+const ROUTER_HEADERS = [
+  "server_received_utc",
+  "study_id",
+  "router_version",
+  "assignment_id",
+  "assigned_study",
+  "assigned_url",
+  "assigned_at_utc",
+  "source",
+];
 
 const HEADERS = [
   "server_received_utc",
@@ -70,13 +88,17 @@ const HEADERS = [
   "trust_rt_ms",
   "background_rt_ms",
   "item_level_json",
+  "recruitment_id",
+  "recruitment_source",
+  "assigned_study",
 ];
 
 function doGet() {
   return jsonResponse_({
     ok: true,
     study_id: STUDY_ID,
-    message: "CONFIIA Study 02 response collector is running.",
+    router_study_id: ROUTER_STUDY_ID,
+    message: "CONFIIA Study 02 and recruitment assignment collector is running.",
   });
 }
 
@@ -90,40 +112,28 @@ function doPost(e) {
     }
 
     const payload = JSON.parse(e.postData.contents);
-    if (payload.study_id !== STUDY_ID) {
-      throw new Error("Unknown study_id.");
+    if (payload.study_id === ROUTER_STUDY_ID) {
+      return saveRouterAssignment_(payload);
     }
+    if (payload.study_id !== STUDY_ID) throw new Error("Unknown study_id.");
     if (!payload.submission_id) {
       throw new Error("Missing submission_id.");
     }
 
     const sheet = getResponseSheet_();
-    const submissionColumn = HEADERS.indexOf("submission_id") + 1;
-    const existingRows = sheet.getLastRow() - 1;
-
-    if (existingRows > 0) {
-      const duplicate = sheet
-        .getRange(2, submissionColumn, existingRows, 1)
-        .createTextFinder(String(payload.submission_id))
-        .matchEntireCell(true)
-        .findNext();
-
-      if (duplicate) {
-        return jsonResponse_({ ok: true, duplicate: true });
-      }
-    }
-
     const record = Object.assign(
       { server_received_utc: new Date().toISOString() },
       payload,
     );
-    sheet.appendRow(
-      HEADERS.map(function (header) {
-        return safeCell_(record[header]);
-      }),
+    const duplicate = appendUnique_(
+      sheet,
+      HEADERS,
+      "submission_id",
+      payload.submission_id,
+      record,
     );
 
-    return jsonResponse_({ ok: true, duplicate: false });
+    return jsonResponse_({ ok: true, duplicate: duplicate });
   } catch (error) {
     return jsonResponse_({
       ok: false,
@@ -138,26 +148,100 @@ function setupResponses() {
   return getResponseSheet_().getName();
 }
 
+function setupRecruitmentAssignments() {
+  return getRouterSheet_().getName();
+}
+
 function getResponseSheet_() {
+  return getNamedSheet_(SHEET_NAME, HEADERS);
+}
+
+function getRouterSheet_() {
+  return getNamedSheet_(ROUTER_SHEET_NAME, ROUTER_HEADERS);
+}
+
+function getNamedSheet_(sheetName, headers) {
   const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-  let sheet = spreadsheet.getSheetByName(SHEET_NAME);
+  let sheet = spreadsheet.getSheetByName(sheetName);
 
   if (!sheet) {
-    sheet = spreadsheet.insertSheet(SHEET_NAME);
+    sheet = spreadsheet.insertSheet(sheetName);
   }
 
   if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.setFrozenRows(1);
     sheet
-      .getRange(1, 1, 1, HEADERS.length)
+      .getRange(1, 1, 1, headers.length)
       .setFontWeight("bold")
       .setBackground("#102d3f")
       .setFontColor("#ffffff");
-    sheet.autoResizeColumns(1, HEADERS.length);
+    sheet.autoResizeColumns(1, headers.length);
+  } else if (sheet.getLastColumn() < headers.length) {
+    const firstNewColumn = sheet.getLastColumn() + 1;
+    const missingHeaders = headers.slice(firstNewColumn - 1);
+    sheet
+      .getRange(1, firstNewColumn, 1, missingHeaders.length)
+      .setValues([missingHeaders])
+      .setFontWeight("bold")
+      .setBackground("#102d3f")
+      .setFontColor("#ffffff");
+    sheet.autoResizeColumns(firstNewColumn, missingHeaders.length);
   }
 
   return sheet;
+}
+
+function saveRouterAssignment_(payload) {
+  if (!payload.assignment_id) throw new Error("Missing assignment_id.");
+  if (!ROUTER_DESTINATIONS[payload.assigned_study]) {
+    throw new Error("Unknown assigned_study.");
+  }
+
+  const record = {
+    server_received_utc: new Date().toISOString(),
+    study_id: ROUTER_STUDY_ID,
+    router_version: payload.router_version,
+    assignment_id: payload.assignment_id,
+    assigned_study: payload.assigned_study,
+    assigned_url: ROUTER_DESTINATIONS[payload.assigned_study],
+    assigned_at_utc: payload.assigned_at_utc,
+    source: payload.source,
+  };
+  const duplicate = appendUnique_(
+    getRouterSheet_(),
+    ROUTER_HEADERS,
+    "assignment_id",
+    payload.assignment_id,
+    record,
+  );
+
+  return jsonResponse_({
+    ok: true,
+    duplicate: duplicate,
+    assigned_study: payload.assigned_study,
+  });
+}
+
+function appendUnique_(sheet, headers, idHeader, idValue, record) {
+  const idColumn = headers.indexOf(idHeader) + 1;
+  const existingRows = sheet.getLastRow() - 1;
+
+  if (existingRows > 0) {
+    const duplicate = sheet
+      .getRange(2, idColumn, existingRows, 1)
+      .createTextFinder(String(idValue))
+      .matchEntireCell(true)
+      .findNext();
+    if (duplicate) return true;
+  }
+
+  sheet.appendRow(
+    headers.map(function (header) {
+      return safeCell_(record[header]);
+    }),
+  );
+  return false;
 }
 
 function safeCell_(value) {

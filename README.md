@@ -90,15 +90,23 @@ connected.
 
 The collector in [`google-apps-script/Code.gs`](google-apps-script/Code.gs) appends
 Study 02 responses to a separate `Study02_Responses` tab in the same private workbook
-used by Study 01. It validates `study_id`, rejects duplicate `submission_id` values,
-serializes concurrent writes with a script lock, and neutralizes spreadsheet formulas.
+used by Study 01. It also accepts anonymous allocations from the unified recruitment
+router and stores them in `Recruitment_Assignments`, deduplicated by `assignment_id`.
+It validates `study_id`, serializes concurrent writes with a script lock, and
+neutralizes spreadsheet formulas.
+
+When entry comes through the unified recruitment page, the completion row retains
+the anonymous `recruitment_id`, source label, and assigned arm. This permits an
+allocation-to-completion audit without names, email addresses, or cross-study
+response linkage.
 
 Deployment procedure:
 
 1. Create a standalone Google Apps Script project in the researcher's Google account.
 2. Paste `google-apps-script/Code.gs` into the project.
-3. Run `setupResponses` once and authorize access. Confirm that the
-   `Study02_Responses` tab appears with the expected headers.
+3. Run `setupResponses` and `setupRecruitmentAssignments` once and authorize access.
+   Confirm that the `Study02_Responses` and `Recruitment_Assignments` tabs appear with
+   the expected headers.
 4. Deploy as a **Web app**, execute as the researcher, and allow access to **Anyone**.
    The Sheet remains private; “Anyone” applies only to posting to the collector URL.
 5. Copy the `/exec` URL.

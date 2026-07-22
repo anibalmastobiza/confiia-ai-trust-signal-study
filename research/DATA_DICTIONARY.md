@@ -19,6 +19,9 @@ one row per trial. Scale responses are stored as integers from 0 to 6.
 | `viewport_bucket` | category | Coarse width category; exact dimensions are not stored |
 | `coarse_pointer` | boolean | Browser media-query result for coarse pointing |
 | `trial_order` | string | Pipe-delimited item order |
+| `recruitment_id` | UUID/string or blank | Anonymous allocation ID received from the unified recruitment router (`rid`) |
+| `recruitment_source` | string or blank | Recruitment source label; unified route uses `confiia-unified-recruitment` |
+| `assigned_study` | string or blank | Router arm (`study02` for correctly routed unified entries) |
 
 ## Task performance and advice taking
 

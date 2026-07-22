@@ -98,7 +98,7 @@ type TypingSummary = {
 };
 
 const STUDY_ID = "confiia_ai_trust_behavioral_signals";
-const STUDY_VERSION = "1.0.0";
+const STUDY_VERSION = "1.0.1";
 const DATA_ENDPOINT = import.meta.env.VITE_DATA_ENDPOINT?.trim() ?? "";
 const STUDY_ONE_URL =
   "https://anibalmastobiza.github.io/confiia-ai-trust-framing-study/";
@@ -166,6 +166,19 @@ const SIDE_LABEL: Record<Side, string> = {
 function makeParticipantId() {
   const randomPart = crypto.randomUUID().replaceAll("-", "").slice(0, 8);
   return `CONFIIA2-${randomPart.toUpperCase()}`;
+}
+
+function recruitmentMetadata() {
+  const params = new URLSearchParams(window.location.search);
+  const assignedStudy = params.get("assigned_study") ?? "";
+  return {
+    recruitment_id: (params.get("rid") ?? "").slice(0, 128),
+    recruitment_source: (params.get("source") ?? "").slice(0, 80),
+    assigned_study:
+      assignedStudy === "study01" || assignedStudy === "study02"
+        ? assignedStudy
+        : "",
+  };
 }
 
 function seededRandom(seedText: string) {
@@ -466,6 +479,7 @@ export default function Home() {
       const surveyMultiChoice = multiChoiceModule.default;
       const participantId = makeParticipantId();
       const submissionId = crypto.randomUUID();
+      const recruitment = recruitmentMetadata();
       const sessionStartedUtc = new Date().toISOString();
       const sessionStartedMs = Date.now();
       const itemState = new Map<
@@ -688,6 +702,7 @@ export default function Home() {
             trust_rt_ms: trust?.rt ?? "",
             background_rt_ms: background?.rt ?? "",
             item_level_json: JSON.stringify(itemRows),
+            ...recruitment,
           };
 
           void (async () => {
@@ -724,6 +739,7 @@ export default function Home() {
         jspsych_version: jsPsych.version(),
         session_started_utc: sessionStartedUtc,
         trial_order: trialOrder.map((trial) => trial.id).join("|"),
+        ...recruitment,
       });
 
       const timeline: any[] = [
