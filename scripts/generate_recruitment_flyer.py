@@ -124,7 +124,12 @@ def draw_step(
 def build_flyer() -> None:
     OUTPUT_PDF.parent.mkdir(parents=True, exist_ok=True)
     width, height = A4
-    pdf = canvas.Canvas(str(OUTPUT_PDF), pagesize=A4, pageCompression=1)
+    pdf = canvas.Canvas(
+        str(OUTPUT_PDF),
+        pagesize=A4,
+        pageCompression=1,
+        invariant=1,
+    )
     pdf.setTitle("Recruitment flyer - CONFIIA Study 02")
     pdf.setSubject("Recruitment flyer for a five-minute online AI trust study")
     pdf.setAuthor("CONFIIA - Universidad de Granada")
