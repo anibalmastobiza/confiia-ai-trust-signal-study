@@ -1,7 +1,9 @@
-# CONFIIA / Study 02 — Behavioral Signals of Trust in AI
+# CONFIIA / Study 02: Behavioral Signals and Self-Reported Trust
 
-An English-language, five-minute jsPsych study testing whether behavioral signals
-recorded before explicit trust measurement predict trust in an imperfect AI adviser.
+An English-language, five-minute jsPsych study testing whether interaction behavior
+and browser paradata predict subsequent self-reported trust within a short advice
+task. The adviser is explicitly introduced as a simulation with pre-programmed
+recommendations. Trust is measured after six trials and a one-sentence reflection.
 It is designed as the companion to
 [CONFIIA Study 01](https://anibalmastobiza.github.io/confiia-ai-trust-framing-study/)
 for a single scientific manuscript.
@@ -10,23 +12,46 @@ for a single scientific manuscript.
 
 - **Study 01** estimates a causal framing effect: whether logically equivalent gain
   and loss descriptions change trust in medical AI.
-- **Study 02** tests predictive and convergent validity: whether advice uptake,
-  confidence updating, response latency, and privacy-preserving interaction paradata
-  anticipate later self-reported trust.
+- **Study 02** tests whether pointer, typing, and word-category features improve
+  out-of-sample prediction of later self-reported trust beyond background variables
+  and classical advice-taking measures.
 
-The pairing separates *what changes trust* from *how trust manifests during use*.
+The manuscript combines an experimental communication contrast with a predictive
+analysis of self-reported trust in a separate task.
 
 ## Participant journey
 
-1. Consent to a research pilot.
+1. Read the study information and consent to a task with a simulated AI adviser.
 2. Complete six brief dot-comparison trials.
 3. Give an initial choice and confidence rating on every trial.
-4. See an imperfect AI recommendation, make a final choice, and receive feedback.
+4. See a pre-programmed recommendation, make a final choice, and receive feedback.
 5. Write one short sentence explaining what guided advice use.
 6. Complete a five-item trust page and brief background measures.
-7. Receive an immediate debrief and an internally generated study code.
+7. Read the debrief and choose whether to send the completed response.
+8. Receive an internally generated study code and, for the configured Prolific
+   advertisement, the return link. Declining submission sends no study response.
 
-The AI is pre-programmed and correct on four of six trials. It is not a live model.
+The adviser is correct on four of six trials. In version `1.0.4`, the correct answer
+is left on three trials and right on three trials. Adviser errors occur once for
+each correct side; correct recommendations occur twice on each side. Trial order is
+randomized. The simulation is disclosed before participants begin.
+
+## Combined recruitment and analysis
+
+The analysis uses earlier and newly collected eligible responses together, including
+all recruitment sources and study versions. Source or version alone is not an
+exclusion criterion. As documented on 22 October 2026, the working target is
+approximately **700 completed responses in total**, comprising **101 earlier
+responses plus approximately 599 new responses**. This target is a planning value;
+it does not guarantee a significant effect. The earlier records remain part of the
+combined study. Version and source counts, the changes in `1.0.4`, and sensitivity
+analyses accompany the pooled results.
+
+The primary predictive contrast is full versus baseline plus classical interaction
+features. Full versus baseline alone is secondary. These comparisons concern the
+later self-report in this task, including its preceding reflection. The dated plan
+in `research/PREREGISTRATION.md` documents the update; its filename does not assert
+an external registration.
 
 ## Measures
 
@@ -67,11 +92,12 @@ Replace it with institution-approved language before recruitment.
 - [`research/RESEARCH_BRIEF.md`](research/RESEARCH_BRIEF.md) synthesizes the literature,
   explains the gap, and positions both studies in one manuscript.
 - [`research/PREREGISTRATION.md`](research/PREREGISTRATION.md) defines hypotheses,
-  stopping, exclusions, predictors, and the out-of-sample analysis.
+  the dated analysis plan, target sample, exclusions, predictors, and out-of-sample
+  comparisons.
 - [`research/DATA_DICTIONARY.md`](research/DATA_DICTIONARY.md) documents every stored
   field and the privacy boundary.
 - [`analysis/analysis.py`](analysis/analysis.py) implements nested repeated
-  cross-validation, paired prediction-error bootstraps, and the preregistered HC3
+  cross-validation, paired prediction-error bootstraps, and the planned HC3
   association model.
 
 ## Local development
@@ -160,6 +186,12 @@ The return remains available if sending fails, alongside the warning and local
 CSV/JSON downloads. A successful browser dispatch does not confirm that the
 spreadsheet received or stored the response.
 
+Version `1.0.4` displays the debrief and a send-or-decline decision before any
+completed response is posted. Only the affirmative send action initiates the POST.
+The completion page also supports returning to Prolific after declining submission.
+The updated trial balance and disclosure are recorded under the same study with a
+new `study_version`; older responses remain in the combined analysis.
+
 When duplicating the Prolific advertisement, obtain the new advertisement's study
 ID, completion code and return URL from Prolific. Update `PROLIFIC_STUDY_ID`,
 `PROLIFIC_COMPLETION_CODE` and `PROLIFIC_RETURN_URL` together in
@@ -203,12 +235,14 @@ and no storage of the participant's raw typed sentence.
 ## Pre-launch checklist
 
 - Obtain ethics/data-protection approval and replace placeholder consent language.
-- Freeze and register `research/PREREGISTRATION.md` before inspecting outcomes.
+- Preserve the dated analysis plan and report changes alongside the combined data.
 - Confirm the Google Apps Script endpoint and one-row test submission.
 - Confirm Study 01 and Study 02 recruitment overlap policy.
 - Test physical keyboard/mouse and touchscreen/on-screen-keyboard paths.
 - Run a timed pilot and verify median completion remains near five minutes.
 - Confirm the debrief accurately states four correct AI recommendations out of six.
+- Confirm the simulation is disclosed at entry and that declining after the debrief
+  does not send a response.
 - Tag the frozen release and preserve `study_version` in all exported data.
 
 Built against the official [jsPsych 8 documentation](https://www.jspsych.org/latest/).

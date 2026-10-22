@@ -1,7 +1,11 @@
-# Data Dictionary — CONFIIA Study 02
+# Data Dictionary: CONFIIA Study 02
 
-The Google Sheet contains one row per completed submission. jsPsych downloads contain
-one row per trial. Scale responses are stored as integers from 0 to 6.
+The Google Sheet contains one row per completed, submitted response. jsPsych
+downloads contain one row per trial. Scale responses are stored as integers from
+0 to 6. From version `1.0.4`, submission follows the debrief and an affirmative send
+decision. Declining submission creates no response row. Earlier and new complete
+responses remain in the combined analysis; source/version fields document their
+provenance and do not define automatic exclusions.
 
 ## Identifiers and session metadata
 
@@ -9,7 +13,7 @@ one row per trial. Scale responses are stored as integers from 0 to 6.
 | --- | --- | --- |
 | `server_received_utc` | ISO timestamp | Apps Script receipt time |
 | `study_id` | string | Fixed value `confiia_ai_trust_behavioral_signals` |
-| `study_version` | string | Version of study implementation, stimuli and scoring; identifier integration starts at `1.0.2` |
+| `study_version` | string | Version of implementation, stimuli and scoring; Prolific identifiers start at `1.0.2`; `1.0.4` balances sides, discloses the simulation at entry, and places debrief and send decision before submission |
 | `submission_id` | UUID | Idempotency key used to reject duplicate writes |
 | `participant_id` | string | Internally generated participant-facing study code, independent of the Prolific ID |
 | `jspsych_version` | string | Runtime jsPsych version |
@@ -34,6 +38,11 @@ collector appends these headers. The Apps Script web app must be redeployed with
 the revised collector; see the README for the Prolific URL template and deployment.
 
 ## Task performance and advice taking
+
+In version `1.0.4`, three trials have a correct left answer and three have a correct
+right answer. Within each correct-side set, the simulated adviser is correct twice
+and incorrect once. The recorded item data and `study_version` preserve the
+distinction from earlier trial configurations.
 
 | Field | Range | Meaning |
 | --- | --- | --- |
@@ -88,10 +97,17 @@ data are serialized. Only these counts remain:
 | `text_ai_reference_count` | AI, algorithm, model, system, adviser |
 | `text_verification_count` | check, verify, evidence, accuracy, mistake, wrong |
 
-These small dictionaries are theory-guided features, not validated psychological
-scales. They must be reported as exploratory.
+These small dictionaries define features in the primary paradata block. The
+primary comparison evaluates the block's incremental predictive value. Individual
+word-category interpretations remain exploratory; the counts do not constitute
+validated psychological scales.
 
 ## Trust outcomes
+
+These outcomes are reported after the six trials and the one-sentence reflection.
+They measure the participant's subsequent self-report within this task. The
+primary predictive comparison adds browser paradata to baseline plus classical
+advice-taking features; the full-versus-baseline comparison is secondary.
 
 | Field | Range | Meaning |
 | --- | --- | --- |

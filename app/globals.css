@@ -987,14 +987,16 @@ textarea:focus-visible {
   margin-top: 26px;
 }
 
-.prolific-completion {
+.prolific-completion,
+.data-choice-panel {
   border-top: 1px solid var(--line);
   line-height: 1.55;
   margin-top: 32px;
   padding-top: 24px;
 }
 
-.prolific-completion h2 {
+.prolific-completion h2,
+.data-choice-panel h2 {
   font-size: 1.3rem;
   margin: 0 0 12px;
 }
@@ -1006,6 +1008,20 @@ textarea:focus-visible {
 
 .prolific-code {
   font-family: var(--font-mono);
+}
+
+.data-choice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.local-copy-note {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin-top: 24px;
 }
 
 .debrief-card {

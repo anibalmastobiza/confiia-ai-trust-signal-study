@@ -64,8 +64,8 @@ test("page wiring includes session metadata in the payload and jsPsych propertie
   assert.match(page, /recruitmentMetadata\(window\.location\.search\)/);
   assert.match(page, /item_level_json: JSON\.stringify\(itemRows\),\s*\.\.\.recruitment/);
   assert.match(page, /jsPsych\.data\.addProperties\(\{[\s\S]*?\.\.\.recruitment,\s*\}\)/);
-  assert.match(page, /csv: data\.csv\(\),\s*json: data\.json\(\)/);
-  assert.match(page, /const STUDY_VERSION = "1\.0\.3"/);
+  assert.match(page, /const csv = data\.csv\(\);\s*const json = data\.json\(\)/);
+  assert.match(page, /const STUDY_VERSION = "1\.0\.4"/);
 });
 
 function mockSheet(initialRows = []) {

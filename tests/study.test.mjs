@@ -11,8 +11,9 @@ test("implements CONFIIA Study 02 as a five-minute jsPsych advice task", async (
   assert.match(page, /CONFIIA \/ Study 02/);
   assert.match(page, /About 5 minutes/);
   assert.match(page, /import\("jspsych"\)/);
-  assert.match(page, /DOT_TRIALS/);
-  assert.equal((page.match(/id: "dots_\d\d"/g) ?? []).length, 6);
+  assert.match(page, /generateBalancedTrials/);
+  const trials = await readFile(new URL("app/trials.ts", projectRoot), "utf8");
+  assert.equal((trials.match(/id: "dots_\d\d"/g) ?? []).length, 6);
   assert.match(page, /switched_toward_ai_rate/);
   assert.match(page, /mean_ai_confidence_shift/);
   assert.match(page, /stias_index/);
