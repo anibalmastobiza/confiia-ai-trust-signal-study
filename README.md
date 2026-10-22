@@ -150,9 +150,24 @@ redeploy its existing web app using a **new version**. Publishing the website al
 does not update the collector. `setupResponses` or the first accepted submission
 adds the headers after this update.
 
-The displayed study code is an internal reference. A Prolific completion code or
-return URL must be obtained from the corresponding Prolific advertisement and
-configured separately; this identifier integration does not supply one.
+Version 1.0.3 adds a manual **Return to Prolific** button after the debrief and
+downloads. It appears only when the metadata captured at session start contains
+a nonempty `PROLIFIC_PID` and the exact Prolific `STUDY_ID`
+`6ad9d559c9dea36ec4961271`. Its completion code is `C15E3TNE`, and its return URL is
+`https://app.prolific.com/submissions/complete?cc=C15E3TNE`. The `CONFIIA2-...` study
+code remains a separate internal reference. The page does not redirect automatically.
+The return remains available if sending fails, alongside the warning and local
+CSV/JSON downloads. A successful browser dispatch does not confirm that the
+spreadsheet received or stored the response.
+
+When duplicating the Prolific advertisement, obtain the new advertisement's study
+ID, completion code and return URL from Prolific. Update `PROLIFIC_STUDY_ID`,
+`PROLIFIC_COMPLETION_CODE` and `PROLIFIC_RETURN_URL` together in
+[`app/completion.tsx`](app/completion.tsx), update the expected values in
+[`tests/completion.test.mjs`](tests/completion.test.mjs), run the project checks,
+and deploy the website before recruitment. Verify a preview with the new ID and
+confirm that entries for other IDs do not show the return button. The collector
+does not need a change for this completion configuration.
 
 ## GitHub Pages
 

@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ProlificCompletion, SubmissionNotice, type SubmissionStatus } from "./completion";
 import { recruitmentMetadata } from "./recruitment";
 
 type StudyStage = "landing" | "running" | "saving" | "complete" | "error";
-type SubmissionStatus = "sent" | "failed" | "not_configured";
 type Side = "left" | "right";
 
 type DotTrial = {
@@ -69,6 +69,7 @@ type CompletionData = {
   csv: string;
   json: string;
   submissionStatus: SubmissionStatus;
+  recruitment: ReturnType<typeof recruitmentMetadata>;
 };
 
 type PointerSummary = {
@@ -99,7 +100,7 @@ type TypingSummary = {
 };
 
 const STUDY_ID = "confiia_ai_trust_behavioral_signals";
-const STUDY_VERSION = "1.0.2";
+const STUDY_VERSION = "1.0.3";
 const DATA_ENDPOINT = import.meta.env.VITE_DATA_ENDPOINT?.trim() ?? "";
 const STUDY_ONE_URL =
   "https://anibalmastobiza.github.io/confiia-ai-trust-framing-study/";
@@ -713,6 +714,7 @@ export default function Home() {
               csv: data.csv(),
               json: data.json(),
               submissionStatus,
+              recruitment,
             });
             setStage("complete");
           })();
@@ -1253,7 +1255,7 @@ export default function Home() {
         <section className="saving-card">
           <div className="pulse-mark" aria-hidden="true" />
           <p className="trial-kicker">One moment</p>
-          <h1>Saving your response…</h1>
+          <h1>Sending your response…</h1>
           <p>Please keep this page open. This can take up to 15 seconds.</p>
         </section>
       </main>
@@ -1277,30 +1279,18 @@ export default function Home() {
             <p className="completion-lead">
               The adviser was pre-programmed rather than live. It was correct on
               four of the six trials. The study tests whether your behavior before
-              the trust questions—such as advice uptake, confidence updating,
-              response time, and typing friction—predicts your later trust rating.
+              the trust questions, such as advice uptake, confidence updating,
+              response time, and typing friction, predicts your later trust rating.
             </p>
             <p className="completion-privacy">
-              Your sentence and raw pointer path were not retained. The stored
-              record contains only derived counts and timing summaries.
+              Your sentence and raw pointer path were not retained. Only derived
+              counts and timing summaries of these inputs are included in your response.
             </p>
             <div className="participant-code">
               <span>Your study code</span>
               <strong>{completion.participantId}</strong>
             </div>
-            {completion.submissionStatus === "failed" ? (
-              <p className="submission-warning" role="alert">
-                Your response could not be sent to the research spreadsheet.
-                Please download a local copy below.
-              </p>
-            ) : completion.submissionStatus === "not_configured" ? (
-              <p className="submission-warning" role="alert">
-                This preview has no research spreadsheet connected. No data were
-                sent; you may download a local copy below.
-              </p>
-            ) : (
-              <p className="submission-success">Response sent successfully.</p>
-            )}
+            <SubmissionNotice status={completion.submissionStatus} />
             <div className="download-actions">
               <button
                 className="secondary-button"
@@ -1327,6 +1317,7 @@ export default function Home() {
                 Download JSON
               </button>
             </div>
+            <ProlificCompletion metadata={completion.recruitment} />
           </div>
           <aside className="debrief-card">
             <p className="overview-label">The two-study manuscript</p>
