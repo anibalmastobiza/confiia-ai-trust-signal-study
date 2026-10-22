@@ -1,24 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ProlificCompletion, SubmissionNotice, type SubmissionStatus } from "./completion";
+import {
+  canReturnToProlific,
+  createDataDecision,
+  DataChoicePanel,
+  ProlificCompletion,
+  SubmissionNotice,
+  type DataChoice,
+  type SubmissionStatus,
+} from "./completion";
 import { recruitmentMetadata } from "./recruitment";
+import { generateBalancedTrials, makeDotCloud, seededRandom, type Side } from "./trials";
 
-type StudyStage = "landing" | "running" | "saving" | "complete" | "error";
-type Side = "left" | "right";
-
-type DotTrial = {
-  id: string;
-  leftCount: number;
-  rightCount: number;
-  correctChoice: Side;
-  aiChoice: Side;
-};
+type StudyStage = "landing" | "running" | "debrief" | "saving" | "complete" | "error";
 
 type TrialRecord = {
   phase?: string;
   item_id?: string;
   sequence_position?: number;
+  dot_count_left?: number;
+  dot_count_right?: number;
+  stimulus_mirrored?: boolean;
   response?: Record<string, string | number> | number;
   rt?: number;
   initial_choice?: Side;
@@ -68,7 +71,7 @@ type CompletionData = {
   participantId: string;
   csv: string;
   json: string;
-  submissionStatus: SubmissionStatus;
+  submissionStatus: SubmissionStatus | null;
   recruitment: ReturnType<typeof recruitmentMetadata>;
 };
 
@@ -100,55 +103,10 @@ type TypingSummary = {
 };
 
 const STUDY_ID = "confiia_ai_trust_behavioral_signals";
-const STUDY_VERSION = "1.0.3";
+const STUDY_VERSION = "1.0.4";
 const DATA_ENDPOINT = import.meta.env.VITE_DATA_ENDPOINT?.trim() ?? "";
 const STUDY_ONE_URL =
   "https://anibalmastobiza.github.io/confiia-ai-trust-framing-study/";
-
-const DOT_TRIALS: DotTrial[] = [
-  {
-    id: "dots_01",
-    leftCount: 47,
-    rightCount: 54,
-    correctChoice: "right",
-    aiChoice: "right",
-  },
-  {
-    id: "dots_02",
-    leftCount: 58,
-    rightCount: 51,
-    correctChoice: "left",
-    aiChoice: "left",
-  },
-  {
-    id: "dots_03",
-    leftCount: 46,
-    rightCount: 52,
-    correctChoice: "right",
-    aiChoice: "left",
-  },
-  {
-    id: "dots_04",
-    leftCount: 55,
-    rightCount: 49,
-    correctChoice: "left",
-    aiChoice: "left",
-  },
-  {
-    id: "dots_05",
-    leftCount: 50,
-    rightCount: 57,
-    correctChoice: "right",
-    aiChoice: "right",
-  },
-  {
-    id: "dots_06",
-    leftCount: 53,
-    rightCount: 59,
-    correctChoice: "right",
-    aiChoice: "left",
-  },
-];
 
 const TRUST_SCALE = [
   "Not at all",
@@ -168,39 +126,6 @@ const SIDE_LABEL: Record<Side, string> = {
 function makeParticipantId() {
   const randomPart = crypto.randomUUID().replaceAll("-", "").slice(0, 8);
   return `CONFIIA2-${randomPart.toUpperCase()}`;
-}
-
-function seededRandom(seedText: string) {
-  let seed = 2166136261;
-  for (let index = 0; index < seedText.length; index += 1) {
-    seed ^= seedText.charCodeAt(index);
-    seed = Math.imul(seed, 16777619);
-  }
-
-  return () => {
-    seed += 0x6d2b79f5;
-    let value = seed;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function makeDotCloud(count: number, seed: string) {
-  const random = seededRandom(seed);
-  const dots = Array.from({ length: count }, (_, index) => {
-    const size = 4 + Math.round(random() * 3);
-    const left = 4 + random() * 90;
-    const top = 6 + random() * 86;
-    const opacity = 0.72 + random() * 0.28;
-    return `<span class="dot" aria-hidden="true" data-dot="${index}" style="left:${left.toFixed(
-      2,
-    )}%;top:${top.toFixed(2)}%;width:${size}px;height:${size}px;opacity:${opacity.toFixed(
-      2,
-    )}"></span>`;
-  });
-
-  return `<div class="dot-panel" aria-hidden="true">${dots.join("")}</div>`;
 }
 
 function attachPointerTracker(element: HTMLElement): PointerTracker {
@@ -435,6 +360,18 @@ export default function Home() {
   const [completion, setCompletion] = useState<CompletionData | null>(null);
   const experimentElement = useRef<HTMLDivElement>(null);
   const started = useRef(false);
+  const pendingDecision = useRef<ReturnType<typeof createDataDecision> | null>(null);
+
+  const finishDataChoice = async (choice: DataChoice) => {
+    const decide = pendingDecision.current;
+    if (!decide || !completion || stage !== "debrief") return;
+    pendingDecision.current = null;
+    if (choice === "send") setStage("saving");
+    const result = await decide(choice);
+    if (!result) return;
+    setCompletion({ ...completion, ...result });
+    setStage("complete");
+  };
 
   const runStudy = useCallback(async () => {
     if (!experimentElement.current || started.current) return;
@@ -483,7 +420,6 @@ export default function Home() {
         message_progress_bar: "Study progress",
         default_iti: 120,
         on_finish: () => {
-          setStage("saving");
           const data = jsPsych.data.get();
           const trials = data.values() as TrialRecord[];
           const findTrial = (phase: string, itemId?: string) =>
@@ -505,6 +441,9 @@ export default function Home() {
             return {
               item_id: itemId,
               sequence_position: initial.sequence_position,
+              dot_count_left: initial.dot_count_left,
+              dot_count_right: initial.dot_count_right,
+              stimulus_mirrored: initial.stimulus_mirrored,
               correct_choice: advice?.correct_choice,
               ai_choice: advice?.ai_choice,
               ai_correct: advice?.ai_correct,
@@ -694,34 +633,27 @@ export default function Home() {
             ...recruitment,
           };
 
-          void (async () => {
-            let submissionStatus: SubmissionStatus = "not_configured";
-            if (DATA_ENDPOINT) {
-              try {
-                await submitStudyData(payload);
-                submissionStatus = "sent";
-              } catch (submissionError) {
-                console.error(
-                  "Study response could not be stored",
-                  submissionError,
-                );
-                submissionStatus = "failed";
-              }
-            }
-
-            setCompletion({
-              participantId,
-              csv: data.csv(),
-              json: data.json(),
-              submissionStatus,
-              recruitment,
-            });
-            setStage("complete");
-          })();
+          const csv = data.csv();
+          const json = data.json();
+          pendingDecision.current = createDataDecision(
+            { payload, csv, json },
+            Boolean(DATA_ENDPOINT),
+            submitStudyData,
+          );
+          setCompletion({
+            participantId,
+            csv,
+            json,
+            submissionStatus: null,
+            recruitment,
+          });
+          jsPsych.data.reset();
+          itemState.clear();
+          setStage("debrief");
         },
       });
 
-      const trialOrder = jsPsych.randomization.shuffle([...DOT_TRIALS]);
+      const trialOrder = generateBalancedTrials(seededRandom(submissionId));
       jsPsych.data.addProperties({
         participant_id: participantId,
         study_id: STUDY_ID,
@@ -740,12 +672,13 @@ export default function Home() {
               <p class="trial-kicker">Before you begin</p>
               <h1>A brief study of decisions with an AI adviser</h1>
               <p>You are invited to take part in a minimal-risk research pilot about trust in AI-assisted decisions.</p>
+              <p>This study uses a simulated AI adviser. Recommendations are pre-programmed for research and are not generated by a live AI model. The adviser is imperfect and can make mistakes.</p>
               <div class="consent-grid">
                 <div><span>Time</span><strong>About 5 minutes</strong></div>
                 <div><span>Task</span><strong>Six visual decisions and brief questions</strong></div>
                 <div><span>Privacy</span><strong>No camera, microphone, name, or email</strong></div>
               </div>
-              <p class="fine-print">The study records choices, response times, confidence updates, aggregate pointer movement, and typing timing. You will write one short sentence, but the sentence itself is discarded in your browser; only timing, edit counts, word count, and pre-defined word-category counts are stored. Raw pointer paths and individual keys are not stored. Participation is voluntary and you may stop by closing this page. Research data will be stored in a private research spreadsheet. If you enter through Prolific, your Prolific participant, study and session IDs are also stored to match your submission for payment. This pilot is not an evaluation of your ability. Questions may be directed to <a href="mailto:amastobiza@ugr.es">amastobiza@ugr.es</a>.</p>
+              <p class="fine-print">The study records choices, response times, confidence updates, aggregate pointer movement, and typing timing. You will write one short sentence, but the sentence itself is discarded in your browser; only timing, edit counts, word count, and pre-defined word-category counts are stored. Raw pointer paths and individual keys are not stored. Participation is voluntary and you may stop by closing this page. After the debrief, you can choose whether to send your responses to the private research spreadsheet. If you enter through Prolific and choose to send your responses, your Prolific participant, study and session IDs are included to match your submission for payment. This pilot is not an evaluation of your ability. Questions may be directed to <a href="mailto:amastobiza@ugr.es">amastobiza@ugr.es</a>.</p>
             </section>`,
           choices: ["I am 18 or older and I agree"],
           data: { phase: "consent" },
@@ -761,7 +694,7 @@ export default function Home() {
                 <li><span>2</span><p>Rate confidence in your first answer.</p></li>
                 <li><span>3</span><p>See the AI recommendation, make a final choice, and receive feedback.</p></li>
               </ol>
-              <p class="fine-print">The adviser is imperfect and can make mistakes. On a computer, you may also use the left and right arrow keys for the first choice. Please answer without counting individual dots.</p>
+              <p class="fine-print">You will see a simulated AI adviser. Its recommendations are pre-programmed for research and are not generated by a live AI model. The adviser is imperfect and can make mistakes. On a computer, you may also use the left and right arrow keys for the first choice. Please answer without counting individual dots.</p>
             </section>`,
           choices: ["Start the six decisions"],
           data: { phase: "instructions" },
@@ -785,11 +718,13 @@ export default function Home() {
                 <div class="dot-comparison">
                   <div><span class="side-tag">Left</span>${makeDotCloud(
                     trial.leftCount,
-                    `${trial.id}-left`,
+                    trial.leftCloudSeed,
+                    trial.mirrored,
                   )}</div>
                   <div><span class="side-tag">Right</span>${makeDotCloud(
                     trial.rightCount,
-                    `${trial.id}-right`,
+                    trial.rightCloudSeed,
+                    trial.mirrored,
                   )}</div>
                 </div>
               </section>`,
@@ -804,6 +739,7 @@ export default function Home() {
               sequence_position: sequencePosition,
               dot_count_left: trial.leftCount,
               dot_count_right: trial.rightCount,
+              stimulus_mirrored: trial.mirrored,
             },
             on_load: () => {
               if (experimentElement.current) {
@@ -1256,13 +1192,16 @@ export default function Home() {
           <div className="pulse-mark" aria-hidden="true" />
           <p className="trial-kicker">One moment</p>
           <h1>Sending your response…</h1>
-          <p>Please keep this page open. This can take up to 15 seconds.</p>
+          <p>Your study is complete. Sending is in progress. You may wait here for the sending status.
+            {completion && canReturnToProlific(completion.recruitment) && " You can also return to Prolific now."}
+          </p>
+          {completion && <ProlificCompletion metadata={completion.recruitment} />}
         </section>
       </main>
     );
   }
 
-  if (stage === "complete" && completion) {
+  if ((stage === "debrief" || stage === "complete") && completion) {
     return (
       <main className="study-shell completion-shell">
         <header className="study-header compact-header">
@@ -1270,17 +1209,20 @@ export default function Home() {
             <span className="mark" aria-hidden="true">C</span>
             CONFIIA / Study 02
           </a>
-          <span className="session-label">Complete</span>
+          <span className="session-label">{stage === "debrief" ? "Debrief" : "Complete"}</span>
         </header>
         <section className="completion-grid">
           <div className="completion-card">
             <p className="eyebrow">Thank you</p>
-            <h1>Your response is complete.</h1>
+            <h1>You have completed the study.</h1>
             <p className="completion-lead">
-              The adviser was pre-programmed rather than live. It was correct on
-              four of the six trials. The study tests whether your behavior before
-              the trust questions, such as advice uptake, confidence updating,
-              response time, and typing friction, predicts your later trust rating.
+              As explained at the start, the AI adviser was simulated and its
+              recommendations were pre-programmed. It was correct on four of the
+              six trials. Fixed recommendations let us study responses to advice
+              under controlled accuracy. The correct answers and the advice were
+              balanced across the left and right sides. We examine how choices,
+              confidence, response times and typing summaries relate to the trust
+              ratings you reported later.
             </p>
             <p className="completion-privacy">
               Your sentence and raw pointer path were not retained. Only derived
@@ -1290,7 +1232,9 @@ export default function Home() {
               <span>Your study code</span>
               <strong>{completion.participantId}</strong>
             </div>
-            <SubmissionNotice status={completion.submissionStatus} />
+            {completion.submissionStatus && <SubmissionNotice status={completion.submissionStatus} prolificEligible={canReturnToProlific(completion.recruitment)} />}
+            {(stage === "debrief" || completion.submissionStatus !== "declined") && <>
+            {stage === "debrief" && <p className="local-copy-note">Optional: download a copy for yourself before deciding whether to send your responses.</p>}
             <div className="download-actions">
               <button
                 className="secondary-button"
@@ -1317,15 +1261,20 @@ export default function Home() {
                 Download JSON
               </button>
             </div>
-            <ProlificCompletion metadata={completion.recruitment} />
+            </>}
+            {stage === "debrief" ? (
+              <DataChoicePanel onChoice={finishDataChoice} prolificEligible={canReturnToProlific(completion.recruitment)} />
+            ) : (
+              <ProlificCompletion metadata={completion.recruitment} />
+            )}
           </div>
           <aside className="debrief-card">
             <p className="overview-label">The two-study manuscript</p>
             <p>
               Study 01 estimates whether a one-sentence gain or loss frame changes
-              trust in medical AI. Study 02 asks a complementary question: can
-              unobtrusive behavior during AI-assisted decisions predict trust
-              before people explicitly report it?
+              trust in medical AI. Study 02 asks whether choices, confidence
+              updates and interaction measures add predictive information about
+              self-reported trust in this task.
             </p>
             <a href={STUDY_ONE_URL} target="_blank" rel="noreferrer">
               View companion Study 01 <span aria-hidden="true">↗</span>
@@ -1363,14 +1312,15 @@ export default function Home() {
 
       <section className="hero-grid">
         <div className="hero-copy">
-          <p className="eyebrow">Behavior before belief</p>
+          <p className="eyebrow">Choices and confidence</p>
           <h1>
-            Trust, before you <em>say</em> it.
+            Decisions with <em>simulated AI advice.</em>
           </h1>
           <p className="hero-summary">
-            Make six quick visual decisions with an imperfect AI adviser. We
-            study whether small, privacy-preserving behavioral signals anticipate
-            your stated trust.
+            Make six quick visual decisions with an imperfect simulated AI adviser.
+            Its recommendations are pre-programmed for research and are not
+            generated by a live AI model. We study how choices and confidence
+            relate to your trust ratings.
           </p>
           <button
             className="primary-button begin-button"

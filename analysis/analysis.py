@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Preregistered predictive analysis for CONFIIA Study 02."""
+"""Joint predictive analysis for CONFIIA Study 02."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import math
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -112,30 +113,79 @@ def valid_item_json(value: Any) -> bool:
         return False
 
 
-def prepare_data(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:
+def prepare_data(
+    frame: pd.DataFrame,
+) -> tuple[pd.DataFrame, dict[str, int], pd.DataFrame]:
+    """Retain every input row in an audit and pool available outcomes.
+
+    Duration and item-JSON diagnostics do not determine eligibility. Known
+    duplicate submission IDs are represented once; missing IDs are not assumed
+    to identify the same person. No eligibility rule uses source or version.
+    """
     counts = {"raw_rows": len(frame)}
-    data = frame.loc[frame["study_id"].eq(STUDY_ID)].copy()
+    audit = pd.DataFrame({"analysis_input_row": np.arange(1, len(frame) + 1)})
+    for column in ("study_id", "submission_id", "study_version", "recruitment_source"):
+        if column in frame:
+            audit[column] = frame[column].to_numpy(copy=True)
+    audit["matching_study"] = frame["study_id"].eq(STUDY_ID).to_numpy()
+    audit["duplicate_submission"] = False
+    audit["outcome_available"] = np.isfinite(
+        pd.to_numeric(frame[OUTCOME], errors="coerce").to_numpy(dtype=float)
+    )
+    duration = pd.to_numeric(
+        frame.get("total_elapsed_ms", pd.Series(np.nan, index=frame.index)),
+        errors="coerce",
+    )
+    audit["duration_below_90s"] = duration.lt(90000).to_numpy()
+    audit["duration_unavailable"] = duration.isna().to_numpy()
+    audit["item_json_valid"] = frame.get(
+        "item_level_json", pd.Series(None, index=frame.index, dtype=object)
+    ).map(valid_item_json).to_numpy()
+
+    data = frame.reset_index(drop=True).copy()
+    data["analysis_input_row"] = audit["analysis_input_row"]
+    data = data.loc[audit["matching_study"]].copy()
     counts["matching_study"] = len(data)
-
-    data["server_received_utc"] = pd.to_datetime(
-        data["server_received_utc"], errors="coerce", utc=True
+    received = pd.to_datetime(
+        data.get("server_received_utc", pd.Series(None, index=data.index)),
+        errors="coerce",
+        utc=True,
     )
-    data = data.sort_values("server_received_utc").drop_duplicates(
-        "submission_id", keep="first"
-    )
+    data = data.loc[received.sort_values(kind="stable").index]
+    submission = data.get("submission_id", pd.Series("", index=data.index))
+    known_id = submission.notna() & submission.astype(str).str.strip().ne("")
+    duplicate = known_id & submission.duplicated(keep="first")
+    audit.loc[data.index[duplicate], "duplicate_submission"] = True
+    data = data.loc[~duplicate].copy()
     counts["after_deduplication"] = len(data)
+    counts["duplicate_submissions"] = int(audit["duplicate_submission"].sum())
 
-    data["total_elapsed_ms"] = pd.to_numeric(data["total_elapsed_ms"], errors="coerce")
-    data[OUTCOME] = pd.to_numeric(data[OUTCOME], errors="coerce")
-    item_valid = data["item_level_json"].map(valid_item_json)
-    complete = (
-        data[OUTCOME].notna()
-        & data["total_elapsed_ms"].ge(90000)
-        & item_valid
-        & data["submission_id"].notna()
+    audit["included_in_analysis"] = (
+        audit["matching_study"]
+        & ~audit["duplicate_submission"]
+        & audit["outcome_available"]
     )
-    data = data.loc[complete].copy()
+    audit["analysis_status"] = np.select(
+        [
+            ~audit["matching_study"],
+            audit["duplicate_submission"],
+            ~audit["outcome_available"],
+        ],
+        ["other_study", "duplicate_submission", "outcome_unavailable"],
+        default="included",
+    )
+    data[OUTCOME] = pd.to_numeric(data[OUTCOME], errors="coerce")
+    data = data.loc[audit.loc[data.index, "included_in_analysis"]].copy()
+    counts["outcome_unavailable"] = int(
+        audit["analysis_status"].eq("outcome_unavailable").sum()
+    )
     counts["analysis_rows"] = len(data)
+    counts["short_duration_analysis_rows"] = int(
+        (audit["included_in_analysis"] & audit["duration_below_90s"]).sum()
+    )
+    counts["item_json_flagged_analysis_rows"] = int(
+        (audit["included_in_analysis"] & ~audit["item_json_valid"]).sum()
+    )
 
     for column in BASELINE_NUMERIC + CLASSICAL_NUMERIC + PARADATA_NUMERIC:
         if column in data:
@@ -145,7 +195,7 @@ def prepare_data(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:
         if column in data:
             data[column] = np.log1p(data[column].clip(lower=0))
 
-    return data.reset_index(drop=True), counts
+    return data.reset_index(drop=True), counts, audit
 
 
 def available(columns: list[str], data: pd.DataFrame) -> list[str]:
@@ -266,8 +316,29 @@ def bootstrap_contrast(
     }
 
 
+def predictive_contrasts(
+    predictions: dict[str, pd.DataFrame], seed: int, iterations: int
+) -> dict[str, dict[str, float]]:
+    """Compare paradata with the classical model, then the broader baseline."""
+    errors = {
+        name: aggregate_squared_error(prediction, f"{name}_squared_error")
+        for name, prediction in predictions.items()
+    }
+    return {
+        f"{left}_vs_full": bootstrap_contrast(
+            errors[left],
+            errors["full"],
+            f"{left}_squared_error",
+            "full_squared_error",
+            seed + offset,
+            iterations,
+        )
+        for offset, left in enumerate(("classical", "baseline"), start=1)
+    }
+
+
 def h2_robust_model(data: pd.DataFrame) -> dict[str, dict[str, float | bool]]:
-    """Estimate preregistered directional associations with HC3 uncertainty."""
+    """Estimate secondary directional associations with HC3 uncertainty."""
     focal = [
         "ai_alignment_rate",
         "switched_toward_ai_rate",
@@ -315,13 +386,27 @@ def h2_robust_model(data: pd.DataFrame) -> dict[str, dict[str, float | bool]]:
 
 def main() -> None:
     args = parse_args()
+    output_names = [
+        "input_snapshot.csv", "sample_audit.csv", "analysis_sample.csv",
+        "sample_counts.json", "results.json",
+        *[f"{name}_out_of_fold_predictions.csv" for name in ("baseline", "classical", "full")],
+    ]
+    if any(args.csv.resolve() == (args.output / name).resolve() for name in output_names):
+        raise SystemExit("Choose an output directory that cannot overwrite the input file.")
     args.output.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(args.csv, args.output / "input_snapshot.csv")
     raw = pd.read_csv(args.csv)
-    data, counts = prepare_data(raw)
+    data, counts, audit = prepare_data(raw)
+    audit.to_csv(args.output / "sample_audit.csv", index=False)
+    data.to_csv(args.output / "analysis_sample.csv", index=False)
+    (args.output / "sample_counts.json").write_text(
+        json.dumps(counts, indent=2), encoding="utf-8"
+    )
 
     if len(data) < 50:
         raise SystemExit(
-            f"Only {len(data)} eligible rows. Do not run confirmatory modeling below N=50."
+            f"Only {len(data)} rows with available outcomes. Input snapshot and audit "
+            "were saved; the existing N=50 modeling guard prevents fitting."
         )
 
     baseline_numeric = available(BASELINE_NUMERIC, data)
@@ -343,34 +428,15 @@ def main() -> None:
         metrics[name] = prediction_metrics(prediction)
         prediction.to_csv(args.output / f"{name}_out_of_fold_predictions.csv", index=False)
 
-    baseline_error = aggregate_squared_error(
-        predictions["baseline"], "baseline_squared_error"
-    )
-    classical_error = aggregate_squared_error(
-        predictions["classical"], "classical_squared_error"
-    )
-    full_error = aggregate_squared_error(predictions["full"], "full_squared_error")
-
     results = {
         "study_id": STUDY_ID,
         "outcome": OUTCOME,
         "sample_counts": counts,
         "model_metrics": metrics,
-        "h1_baseline_vs_full": bootstrap_contrast(
-            baseline_error,
-            full_error,
-            "baseline_squared_error",
-            "full_squared_error",
-            args.seed + 1,
-            args.bootstrap,
-        ),
-        "exploratory_classical_vs_full": bootstrap_contrast(
-            classical_error,
-            full_error,
-            "classical_squared_error",
-            "full_squared_error",
-            args.seed + 2,
-            args.bootstrap,
+        "primary_comparison": "classical_vs_full",
+        "secondary_comparison": "baseline_vs_full",
+        "predictive_contrasts": predictive_contrasts(
+            predictions, args.seed, args.bootstrap
         ),
         "h2_hc3_linear_model": h2_robust_model(data),
         "features": {
@@ -379,7 +445,6 @@ def main() -> None:
         },
     }
 
-    data.to_csv(args.output / "analysis_sample.csv", index=False)
     (args.output / "results.json").write_text(
         json.dumps(results, indent=2), encoding="utf-8"
     )

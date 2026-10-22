@@ -1,19 +1,25 @@
-# CONFIIA Study 02 — Behavioral Signals of Trust in AI
+# CONFIIA Study 02: Behavioral Signals and Self-Reported Trust
 
 ## Executive summary
 
-CONFIIA Study 02 is a five-minute, browser-based study asking whether behavior
-observed *before* a participant reports trust can predict that report. Participants
-make six perceptual judgments, see an imperfect AI adviser's recommendation, and
-may revise each judgment. The study records advice uptake, confidence updating,
-decision latency, aggregate pointer movement, and privacy-preserving typing and
-word-category features. It then measures trust with the three-item Short Trust in
+CONFIIA Study 02 is a five-minute, browser-based study asking whether interaction
+behavior and browser paradata predict a subsequent self-report within a short
+advice task. Participants make six perceptual judgments, see a simulated adviser's
+pre-programmed recommendation, and may revise each judgment. They then write one
+sentence about their decisions before completing the three-item Short Trust in
 Automation Scale (S-TIAS) plus two items aligned with CONFIIA Study 01.
 
-The proposed contribution is not a new physiological biomarker. It is a test of
-whether low-cost, cross-device **behavioral paradata** can add predictive value in
-an online human–AI interaction without a webcam, microphone, raw key log, raw
-pointer trajectory, or retained free text.
+The primary question is whether aggregate pointer movement, typing, and
+word-category features improve out-of-sample prediction beyond background
+variables and classical advice-taking measures. The outcome is self-reported trust
+after both the task and the reflection. The study collects no webcam recording,
+microphone recording, raw key log, raw pointer trajectory, or retained free text.
+
+This document was updated on 22 October 2026 to describe version `1.0.4` and the
+combined analysis of earlier and newly collected responses. The working target is
+approximately 700 complete responses, including 101 earlier responses and
+approximately 599 new responses. This target does not guarantee a significant
+predictive improvement.
 
 ## Relationship to CONFIIA Study 01
 
@@ -22,16 +28,15 @@ manuscript.
 
 | Manuscript role | Study 01: one-sentence framing | Study 02: behavioral signals |
 | --- | --- | --- |
-| Core question | Does an equivalent gain versus loss frame causally change trust in medical AI? | Can pre-report interaction behavior predict later trust in an AI adviser? |
+| Core question | Does an equivalent gain versus loss frame causally change trust in medical AI? | Does browser paradata improve prediction of later self-reported trust beyond classical advice taking? |
 | Design | Randomized between-subjects framing experiment | Repeated advice-taking task followed by trust measurement |
-| Primary contribution | Causal effect of communication | Predictive and convergent validity of implicit behavioral indicators |
+| Primary contribution | Causal effect of communication | Incremental prediction of task-specific self-reported trust |
 | Shared construct | Trust, comfort, and perceived reliability | S-TIAS plus adapted trust, comfort, and reliability items |
-| Shared implementation | English, anonymous, mobile/desktop, jsPsych 8, GitHub Pages, Google Sheets | English, anonymous, mobile/desktop, jsPsych 8, GitHub Pages, Google Sheets |
+| Shared implementation | English, mobile/desktop, jsPsych 8, GitHub Pages, Google Sheets; Prolific identifiers where supplied | English, mobile/desktop, jsPsych 8, GitHub Pages, Google Sheets; Prolific identifiers where supplied |
 
-Study 01 establishes whether wording moves trust. Study 02 examines whether trust
-also leaves a measurable behavioral trace during interaction. A manuscript can
-therefore distinguish **what changes trust** from **how trust manifests before it
-is explicitly reported**.
+Study 01 estimates the effect of wording on reported trust. Study 02 evaluates
+whether measured behavior adds predictive information about a later self-report.
+These contributions concern different tasks and support separate inferences.
 
 ## What the literature establishes
 
@@ -97,7 +102,7 @@ produced slower typing, more pauses, and more keystrokes across desktop and mobi
 but those features did **not** predict perceived output usefulness in its small
 sample. This is useful boundary evidence: typing dynamics may index effort without
 necessarily indexing trust or evaluation. Study 02 treats their incremental value
-as a falsifiable empirical question, not an assumed biomarker.
+as an empirical question about prediction of a later report in this task.
 
 ## The research gap
 
@@ -108,55 +113,70 @@ that asks whether privacy-preserving typing, pointer, latency, and confidence-up
 features add out-of-sample prediction of AI trust beyond background variables and
 classical advice-taking measures.
 
-The defensible gap is therefore **incremental predictive validity**, not the claim
-that any one behavior is a unique or direct readout of trust.
+The proposed contribution is **incremental predictive validity** beyond classical
+advice-taking measures, evaluated on held-out observations.
 
 ## Study design
 
-1. Adults consent to anonymous collection of choices, timings, aggregate movement,
-   and derived typing/text features.
+1. Adults read that the adviser is simulated and consent to collection of choices,
+   timings, aggregate movement, and derived typing/text features. Prolific entries
+   also supply the identifiers described in the consent information.
 2. On each of six trials, two dot clouds appear for 1.2 seconds.
 3. The participant chooses which side has more dots and rates initial confidence.
-4. An AI adviser recommends a side. The participant makes a final choice and final
-   confidence judgment.
+4. The simulated adviser recommends a side. The participant makes a final choice
+   and final confidence judgment.
 5. Feedback reveals the correct side and whether the adviser was correct. The adviser
    is pre-programmed to be correct on four of six trials; order is randomized.
+   Version `1.0.4` has three correct left answers and three correct right answers,
+   with two correct adviser recommendations and one error for each correct side.
 6. Before any trust scale, the participant writes one sentence explaining what guided
    their use or rejection of advice. The browser derives timing and pre-defined word
    category counts, then replaces the sentence with a discard marker.
 7. Participants complete S-TIAS, two manuscript-continuity items, and brief covariates.
+8. Participants read the debrief and choose whether to send the response. Declining
+   sends no study response and leaves the configured Prolific return available.
 
 ## Hypotheses
 
-**H1 — Predictive validity.** A fold-contained elastic-net model containing
-pre-report behavioral signals will reduce out-of-sample RMSE for S-TIAS relative to
-a baseline model containing prior AI experience, device/input, English comfort,
-demographics, initial task accuracy, initial confidence, and initial response time.
+**H1: Incremental predictive validity.** Compare an elastic-net model with baseline,
+classical advice-taking, and browser-paradata features against a model with baseline
+and classical advice-taking features. The hypothesis is that adding browser
+paradata reduces out-of-sample prediction error for post-task, post-reflection
+S-TIAS. Preprocessing and tuning occur within training folds.
 
-**H2a — Behavioral alignment.** Higher final AI-alignment and a higher rate of
+**H2a: Behavioral alignment.** Higher final AI-alignment and a higher rate of
 switching toward AI advice will be associated with higher S-TIAS scores.
 
-**H2b — Confidence transfer.** A larger confidence change in the direction of the
+**H2b: Confidence transfer.** A larger confidence change in the direction of the
 AI-supported final answer will be associated with higher S-TIAS scores.
 
-**Exploratory incremental test.** Typing, pointer, and word-category features will
-be tested as an additional block beyond classical advice-taking features. No single
-direction is asserted because these traces may capture effort, device constraints,
-English production, or uncertainty rather than trust itself.
+**Secondary predictive comparison.** Compare the full model with the baseline-only
+model to quantify the combined contribution of classical interaction measures and
+browser paradata. Individual paradata coefficients do not have directional
+hypotheses: they can reflect effort, device constraints, English production, and
+uncertainty as well as variation associated with the later trust report.
+
+Both comparisons use the same repeated outer cross-validation folds. Paired
+participant-level squared-error differences, aggregated across repeats, are
+summarized with bootstrap intervals. The main dataset combines complete responses
+across recruitment sources and versions; source and version alone do not trigger
+exclusion. The dated analysis plan describes audit flags and sensitivity analyses.
 
 ## Why this design is appropriately cautious
 
-- The outcome is measured only after all predictors, avoiding direct leakage from
-  trust responses into predictor construction.
-- The AI is pre-programmed and identical across participants; no external model or
-  changing API can alter the stimulus.
+- Behavioral and text-derived predictors are collected before the trust items;
+  background covariates follow the trust page. Trust responses are not used to
+  construct the behavioral predictors.
+- The adviser uses fixed recommendations. The balanced version `1.0.4` and earlier
+  versions are documented in the combined dataset; no changing model API supplies
+  the recommendations.
 - Raw free text, raw pointer paths, and individual key identities are not sent.
 - Device/input method and English comfort are measured because they are plausible
   confounds for typing dynamics.
 - Prediction is evaluated out of sample with all preprocessing performed inside
   training folds.
-- Predictive success will not be interpreted as a causal effect or a universal
-  biomarker of trust.
+- Predictive results are interpreted as associations with subsequent self-reported
+  trust in the task and reflection used here.
 
 ## Limitations to report
 
@@ -174,6 +194,12 @@ English production, or uncertainty rather than trust itself.
    participant receives it, it does not invalidate prediction but narrows the outcome
    to post-reflection trust.
 7. Self-reported trust is situation-specific and should not be generalized to all AI.
+8. Earlier and later responses differ in trial balance and the timing of simulation
+   disclosure. The combined estimate includes that procedural variation. Version
+   and source counts and sensitivity analyses must accompany its interpretation.
+9. The analysis plan was updated after earlier data collection. The file named
+   `PREREGISTRATION.md` records that date and does not establish external registration
+   or prospective specification for the earlier observations.
 
 ## Selected references
 
