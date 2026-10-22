@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { recruitmentMetadata } from "./recruitment";
 
 type StudyStage = "landing" | "running" | "saving" | "complete" | "error";
 type SubmissionStatus = "sent" | "failed" | "not_configured";
@@ -98,7 +99,7 @@ type TypingSummary = {
 };
 
 const STUDY_ID = "confiia_ai_trust_behavioral_signals";
-const STUDY_VERSION = "1.0.1";
+const STUDY_VERSION = "1.0.2";
 const DATA_ENDPOINT = import.meta.env.VITE_DATA_ENDPOINT?.trim() ?? "";
 const STUDY_ONE_URL =
   "https://anibalmastobiza.github.io/confiia-ai-trust-framing-study/";
@@ -166,19 +167,6 @@ const SIDE_LABEL: Record<Side, string> = {
 function makeParticipantId() {
   const randomPart = crypto.randomUUID().replaceAll("-", "").slice(0, 8);
   return `CONFIIA2-${randomPart.toUpperCase()}`;
-}
-
-function recruitmentMetadata() {
-  const params = new URLSearchParams(window.location.search);
-  const assignedStudy = params.get("assigned_study") ?? "";
-  return {
-    recruitment_id: (params.get("rid") ?? "").slice(0, 128),
-    recruitment_source: (params.get("source") ?? "").slice(0, 80),
-    assigned_study:
-      assignedStudy === "study01" || assignedStudy === "study02"
-        ? assignedStudy
-        : "",
-  };
 }
 
 function seededRandom(seedText: string) {
@@ -479,7 +467,7 @@ export default function Home() {
       const surveyMultiChoice = multiChoiceModule.default;
       const participantId = makeParticipantId();
       const submissionId = crypto.randomUUID();
-      const recruitment = recruitmentMetadata();
+      const recruitment = recruitmentMetadata(window.location.search);
       const sessionStartedUtc = new Date().toISOString();
       const sessionStartedMs = Date.now();
       const itemState = new Map<
@@ -755,7 +743,7 @@ export default function Home() {
                 <div><span>Task</span><strong>Six visual decisions and brief questions</strong></div>
                 <div><span>Privacy</span><strong>No camera, microphone, name, or email</strong></div>
               </div>
-              <p class="fine-print">The study records choices, response times, confidence updates, aggregate pointer movement, and typing timing. You will write one short sentence, but the sentence itself is discarded in your browser; only timing, edit counts, word count, and pre-defined word-category counts are stored. Raw pointer paths and individual keys are not stored. Participation is voluntary and you may stop by closing this page. Anonymous data will be stored in a private research spreadsheet. This pilot is not an evaluation of your ability. Questions may be directed to <a href="mailto:amastobiza@ugr.es">amastobiza@ugr.es</a>.</p>
+              <p class="fine-print">The study records choices, response times, confidence updates, aggregate pointer movement, and typing timing. You will write one short sentence, but the sentence itself is discarded in your browser; only timing, edit counts, word count, and pre-defined word-category counts are stored. Raw pointer paths and individual keys are not stored. Participation is voluntary and you may stop by closing this page. Research data will be stored in a private research spreadsheet. If you enter through Prolific, your Prolific participant, study and session IDs are also stored to match your submission for payment. This pilot is not an evaluation of your ability. Questions may be directed to <a href="mailto:amastobiza@ugr.es">amastobiza@ugr.es</a>.</p>
             </section>`,
           choices: ["I am 18 or older and I agree"],
           data: { phase: "consent" },
@@ -1252,7 +1240,7 @@ export default function Home() {
             <span className="mark" aria-hidden="true">C</span>
             CONFIIA / Study 02
           </a>
-          <span className="session-label">Anonymous behavioral session</span>
+          <span className="session-label">Behavioral research session</span>
         </header>
         <div ref={experimentElement} className="experiment-mount" />
       </main>
@@ -1265,7 +1253,7 @@ export default function Home() {
         <section className="saving-card">
           <div className="pulse-mark" aria-hidden="true" />
           <p className="trial-kicker">One moment</p>
-          <h1>Saving your anonymous response…</h1>
+          <h1>Saving your response…</h1>
           <p>Please keep this page open. This can take up to 15 seconds.</p>
         </section>
       </main>
@@ -1297,7 +1285,7 @@ export default function Home() {
               record contains only derived counts and timing summaries.
             </p>
             <div className="participant-code">
-              <span>Your anonymous code</span>
+              <span>Your study code</span>
               <strong>{completion.participantId}</strong>
             </div>
             {completion.submissionStatus === "failed" ? (
@@ -1400,7 +1388,7 @@ export default function Home() {
             Begin study <span aria-hidden="true">→</span>
           </button>
           <p className="eligibility-note">
-            For adults aged 18+ · Anonymous · About 5 minutes · Mobile or desktop
+            For adults aged 18+ · No names requested · About 5 minutes · Mobile or desktop
           </p>
         </div>
 

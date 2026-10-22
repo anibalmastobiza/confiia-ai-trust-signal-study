@@ -18,13 +18,13 @@ The pairing separates *what changes trust* from *how trust manifests during use*
 
 ## Participant journey
 
-1. Consent to an anonymous research pilot.
+1. Consent to a research pilot.
 2. Complete six brief dot-comparison trials.
 3. Give an initial choice and confidence rating on every trial.
 4. See an imperfect AI recommendation, make a final choice, and receive feedback.
 5. Write one short sentence explaining what guided advice use.
 6. Complete a five-item trust page and brief background measures.
-7. Receive an immediate debrief and anonymous completion code.
+7. Receive an immediate debrief and an internally generated study code.
 
 The AI is pre-programmed and correct on four of six trials. It is not a live model.
 
@@ -54,6 +54,10 @@ string. The one-sentence response is analyzed in the participant's browser and t
 replaced with a discard marker before jsPsych data are serialized. Raw pointer
 coordinates and individual key identities are never sent. Only aggregate timing,
 movement, edit, and word-category summaries are retained.
+
+Entries from Prolific also retain the participant, study and session identifiers
+provided in the entry URL. These are pseudonymous identifiers used to match a
+submission for payment. They are separate from the internally generated study code.
 
 The consent copy is a research-pilot placeholder, not a claim of ethics approval.
 Replace it with institution-approved language before recruitment.
@@ -120,6 +124,35 @@ The browser uses a `no-cors` request because Apps Script web apps do not expose 
 normal cross-origin JSON response. “Response sent” confirms dispatch, not a readable
 server acknowledgement. Monitor the Sheet during recruitment and retain participant
 downloads as the fallback path.
+
+## Independent Prolific study
+
+For the separate Study 02 advertisement, use this direct study URL with Prolific's
+URL-parameter placeholders:
+
+```text
+https://anibalmastobiza.github.io/confiia-ai-trust-signal-study/?source=prolific&PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
+```
+
+The participant-facing Prolific link substitutes these placeholders. The study
+captures them once at session start as `prolific_pid`, `prolific_study_id` and
+`prolific_session_id`. Each value is URL-decoded and limited to 128 characters.
+They are included in the completion payload and in every jsPsych JSON/CSV record.
+The existing `participant_id`, `study_id` and `submission_id` retain their meanings.
+Without these parameters, the three fields are empty. A nonempty `source` is preserved
+when provided; otherwise a nonempty `PROLIFIC_PID` sets `recruitment_source` to `prolific`.
+The unified router and its `rid`, `source` and `assigned_study` fields remain supported.
+
+Version 1.0.2 appends the three Prolific columns at the end of `Study02_Responses`.
+Existing rows and columns are preserved; older payloads leave the new cells empty.
+Update the Apps Script project with the revised `google-apps-script/Code.gs` and
+redeploy its existing web app using a **new version**. Publishing the website alone
+does not update the collector. `setupResponses` or the first accepted submission
+adds the headers after this update.
+
+The displayed study code is an internal reference. A Prolific completion code or
+return URL must be obtained from the corresponding Prolific advertisement and
+configured separately; this identifier integration does not supply one.
 
 ## GitHub Pages
 

@@ -9,9 +9,9 @@ one row per trial. Scale responses are stored as integers from 0 to 6.
 | --- | --- | --- |
 | `server_received_utc` | ISO timestamp | Apps Script receipt time |
 | `study_id` | string | Fixed value `confiia_ai_trust_behavioral_signals` |
-| `study_version` | string | Version of stimuli and scoring |
+| `study_version` | string | Version of study implementation, stimuli and scoring; identifier integration starts at `1.0.2` |
 | `submission_id` | UUID | Idempotency key used to reject duplicate writes |
-| `participant_id` | string | Anonymous participant-facing code |
+| `participant_id` | string | Internally generated participant-facing study code, independent of the Prolific ID |
 | `jspsych_version` | string | Runtime jsPsych version |
 | `session_started_utc` | ISO timestamp | Browser start time |
 | `session_completed_utc` | ISO timestamp | Browser completion time |
@@ -20,8 +20,18 @@ one row per trial. Scale responses are stored as integers from 0 to 6.
 | `coarse_pointer` | boolean | Browser media-query result for coarse pointing |
 | `trial_order` | string | Pipe-delimited item order |
 | `recruitment_id` | UUID/string or blank | Anonymous allocation ID received from the unified recruitment router (`rid`) |
-| `recruitment_source` | string or blank | Recruitment source label; unified route uses `confiia-unified-recruitment` |
+| `recruitment_source` | string or blank | Nonempty `source` label; defaults to `prolific` if a Prolific participant ID is present and `source` is absent or empty; unified route uses `confiia-unified-recruitment` |
 | `assigned_study` | string or blank | Router arm (`study02` for correctly routed unified entries) |
+| `prolific_pid` | string or blank | Pseudonymous Prolific participant ID from `PROLIFIC_PID`, URL-decoded and limited to 128 characters |
+| `prolific_study_id` | string or blank | Prolific advertisement ID from `STUDY_ID`, URL-decoded and limited to 128 characters; separate from the fixed internal `study_id` |
+| `prolific_session_id` | string or blank | Prolific submission/session ID from `SESSION_ID`, URL-decoded and limited to 128 characters |
+
+The three Prolific fields are captured once at session start, included in every
+jsPsych JSON/CSV trial record and in the completion payload, and appended as the
+final three columns of the response sheet. Direct entries and older submissions
+without these parameters retain empty values. Existing rows are preserved when the
+collector appends these headers. The Apps Script web app must be redeployed with
+the revised collector; see the README for the Prolific URL template and deployment.
 
 ## Task performance and advice taking
 
