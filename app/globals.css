@@ -987,6 +987,27 @@ textarea:focus-visible {
   margin-top: 26px;
 }
 
+.prolific-completion {
+  border-top: 1px solid var(--line);
+  line-height: 1.55;
+  margin-top: 32px;
+  padding-top: 24px;
+}
+
+.prolific-completion h2 {
+  font-size: 1.3rem;
+  margin: 0 0 12px;
+}
+
+.prolific-completion .primary-button {
+  margin-top: 8px;
+  text-decoration: none;
+}
+
+.prolific-code {
+  font-family: var(--font-mono);
+}
+
 .debrief-card {
   background: var(--navy);
   color: var(--paper-light);
