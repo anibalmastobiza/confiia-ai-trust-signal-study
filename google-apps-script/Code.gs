@@ -91,6 +91,9 @@ const HEADERS = [
   "recruitment_id",
   "recruitment_source",
   "assigned_study",
+  "prolific_pid",
+  "prolific_study_id",
+  "prolific_session_id",
 ];
 
 function doGet() {
@@ -166,6 +169,11 @@ function getNamedSheet_(sheetName, headers) {
 
   if (!sheet) {
     sheet = spreadsheet.insertSheet(sheetName);
+  }
+
+  const currentColumns = sheet.getMaxColumns();
+  if (currentColumns < headers.length) {
+    sheet.insertColumnsAfter(currentColumns, headers.length - currentColumns);
   }
 
   if (sheet.getLastRow() === 0) {
